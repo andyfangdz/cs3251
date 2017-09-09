@@ -1,0 +1,35 @@
+msc {
+
+  hscale="1.4", wordwraparcs=on, arcgradient = 8;
+
+  c [label="ATM"], s [label="Bank"];
+
+
+  --- [label="User inserts card; ATM wakes up from idle"];
+  c => s [label="ID; ATM auth request with public key"];
+  --- [label="Bank confirms public key belongs to authorized ATM"];
+  s => c [label="Auth challenge with random number C"];
+  c => s [label="AUTH(sig(C)); sig(C) signed with ATM private key"];
+  --- [label="Bank confirms sig(C) is signed with ATM private key"];
+  s => c [label="Auth token with 5 minute timeout"];
+
+  --- [label="ATM makes further requests with auth token"];
+  --- [label="Bank only serves non-auth requests with valid auth token"];
+
+  --- [label="ATM prompts user for password"];
+  c => s [label="CARD_AUTH(card_number, password); "];
+  --- [label="Bank checks if the card can be used in this ATM, and the password is correct"];
+  s => c [label="Transaction authorization token with timeout"];
+
+  --- [label="ATM makes further requests with transaction token"];
+  --- [label="Bank only serves transactions with valid transaction token"];
+
+  c => s [label="WITHDRAW(amount);"];
+  --- [label="Bank checks if user have enough fund in account, and amount is within various transaction limits"];
+  s => c [label="successfully withdrew $amount cash"];
+
+  --- [label="ATM distributes cash, prompts user for logout"];
+  c => s [label="BYE"];
+  --- [label="Bank invalidates auth and transaction token upon request, or invalidates them upon timeout"];
+
+}
