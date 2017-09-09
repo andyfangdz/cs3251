@@ -1,4 +1,4 @@
-#CS3251 HW1
+# CS3251 HW1
 
 Dezhi Fang, dezhifang@gatech.edu, 903133949, dfang30
 
@@ -145,7 +145,7 @@ traceroute to 8.8.8.8 (8.8.8.8), 30 hops max, 60 byte packets
 17  google-public-dns-a.google.com (8.8.8.8)  9.051 ms  9.310 ms  9.078 ms
 ```
 
-####Trace 3, 9PM Sep 8
+#### Trace 3, 9PM Sep 8
 
 ```
 traceroute to 8.8.8.8 (8.8.8.8), 30 hops max, 60 byte packets
