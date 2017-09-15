@@ -10,6 +10,9 @@
 CC=gcc
 CXX=g++
 
+CXXFLAGS=-std=c++0x
+LIBS=-lcrypto
+
 OS := $(shell uname -s)
 
 # Extra LDFLAGS if Solaris
@@ -20,10 +23,10 @@ endif
 all: client server
 
 client: client.cpp
-	$(CXX) client.cpp -o nameChanger
+	$(CXX) client.cpp -o $@ $(CXXFLAGS) $(LIBS)
 
 server: server.cpp
-	$(CXX) -lcrypto server.cpp -o changeServer
+	$(CXX) server.cpp -o $@ $(CXXFLAGS) $(LIBS)
 
 clean:
 	rm -f client server nameChanger changeServer *.o
