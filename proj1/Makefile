@@ -1,29 +1,30 @@
 #################################################################
 ##
 ## FILE:	Makefile
-## PROJECT:	CS 3251 Project 1 - Professor Ellen Zegura 
+## PROJECT:	CS 3251 Project 1 - Professor Ellen Zegura
 ## DESCRIPTION: Compile Project 1
 ## CREDIT:	Adapted from Professor Traynor
 ##
 #################################################################
 
 CC=gcc
+CXX=g++
 
 OS := $(shell uname -s)
 
 # Extra LDFLAGS if Solaris
 ifeq ($(OS), SunOS)
 	LDFLAGS=-lsocket -lnsl
-    endif
+endif
 
-all: client server 
+all: client server
 
-client: client.c
-	$(CC) client.c -o nameChanger
+client: client.cpp
+	$(CXX) client.cpp -o nameChanger
 
-server: server.c
-	$(CC) -lcrypto server.c -o changeServer
+server: server.cpp
+	$(CXX) -lcrypto server.cpp -o changeServer
 
 clean:
-	    rm -f client server *.o
+	rm -f client server nameChanger changeServer *.o
 
