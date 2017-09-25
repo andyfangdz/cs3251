@@ -7,24 +7,27 @@
 ##
 #################################################################
 
-CXXFLAGS=-std=c++0x -O3 -g
+CXXFLAGS=-std=c++0x -g -O3
 LDFLAGS=-lcrypto
 
 OS := $(shell uname -s)
 
 # Extra LDFLAGS if Solaris
 ifeq ($(OS), SunOS)
-	LDFLAGS=-lsocket -lnsl $(LDFLAGS)
+LDFLAGS=-lsocket -lnsl $(LDFLAGS)
 endif
 
 all: client server
 
-client: client.cpp mini-thrift.o
+client: client.cpp
 
-server: server.cpp mini-thrift.o
+server: server.cpp
 
 clean:
 	rm -rf client server *.o *.dSYM
 
 clean-clion: clean
 	rm -rf cmake-build-debug
+
+test:
+	python test.py

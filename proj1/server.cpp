@@ -18,9 +18,11 @@
 #include <unistd.h>     /* for close() */
 #include <cerrno>
 #include <iostream>
+#include <fstream>
 
 #include <map>
 #include <string>
+#include "atm-protocol.h"
 
 using namespace std;
 
@@ -28,19 +30,61 @@ using namespace std;
 #define SNDBUFSIZE 512 /* The send buffer size */
 #define BUFSIZE 40     /* Your name can be as many as 40 chars*/
 
+map<string, int> balanceSheet;
+
+class ATMServer : public RPCServer {
+public:
+    using RPCServer::RPCServer;
+
+    RPCMessage onBAL(RPCMessage &request) {
+        RPCMessage reply;
+        BALPayload payload;
+        BALReply balReply;
+        reply.verb = request.verb;
+        payload = request.getPayloadStruct<BALPayload>();
+        balReply.balance = balanceSheet[payload.accountName];
+        balReply.accountName = payload.accountName;
+        reply.setPayloadStruct(balReply);
+        return reply;
+    }
+
+
+    RPCMessage dispatch(RPCMessage &request) {
+        if (request.verb == "BAL") {
+            cout << "BAL request";
+            return onBAL(request);
+        } else if (request.verb == "WITHDRAW") {
+            return onBAL(request);
+        }
+    }
+};
+
+
+map<string, int> loadBalanceFromStream(istream &input) {
+    map<string, int> ret;
+
+    string name;
+    int balance;
+    while(!input.eof()) {
+        input >> name >> balance;
+        ret[name] = balance;
+    }
+    return ret;
+};
+
 /* The main function */
 int main(int argc, char **argv) {
     int serverSock;                    /* Server Socket */
     int clientSock;                    /* Client Socket */
     struct sockaddr_in serverAddr; /* Local address */
     struct sockaddr_in clientAddr; /* Client address */
-    unsigned short serverPort = 5432;     /* Server port */
+    unsigned short serverPort = 2017;     /* Server port */
     unsigned int clientLen = sizeof(sockaddr_in);        /* Length of address data struct */
     char nameBuf[BUFSIZE]; /* Buff to store account name from client */
     char rcvBuf[RCVBUFSIZE];
     char sndBuf[SNDBUFSIZE];
     int balance;           /* Place to record account balance result */
-    map<string, int> balanceSheet;
+
     string serverIp = "0.0.0.0";  // By default, bind to all addresses
 
     if (argc >= 2) {
@@ -50,29 +94,13 @@ int main(int argc, char **argv) {
         serverPort = (unsigned short) atoi(argv[2]);
     }
 
-    /* Create new TCP Socket for incoming requests*/
-    serverSock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    /* Construct local address structure*/
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = inet_addr(serverIp.c_str());
-    serverAddr.sin_port = htons(serverPort);
-    /* Bind to local address structure */
-    bind(serverSock, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
-    /* Listen for incoming connections */
-    listen(serverSock, 50);
-    cout << "Started server at " << serverIp << ':' << serverPort << endl;
-    /* Loop server forever*/
-    while ((clientSock = accept(serverSock, (struct sockaddr *)&clientAddr, &clientLen)) > 0) {
-        /* Accept incoming connection */
-        ssize_t bytesRead = read(clientSock, rcvBuf, BUFSIZE);
-        /* Extract the account name from the packet, store in nameBuf */
-        memcpy(nameBuf, rcvBuf, bytesRead);
-        nameBuf[bytesRead] = '\0';
-        /* Look up account balance, store in balance */
-        memcpy(sndBuf, &balance, sizeof(balance));
-        /* Return account balance to client */
-        write(clientSock, sndBuf, sizeof(balance));
-        cout << "Sent reply" << endl;
-    }
+    balanceSheet["myChecking"] = 1000;
+    balanceSheet["mySavings"] = 2000;
+    balanceSheet["myRetirement"] = 3000;
+    balanceSheet["myCollege"] = 4000;
+    ATMServer server(serverIp, serverPort);
+    server.start();
+    server.serve();
     cout << "Error " << errno << ": " << strerror(errno) << endl;
+    return 0;
 }

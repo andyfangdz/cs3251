@@ -5,10 +5,10 @@ set(LIBRARIES "crypto")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
 set(CLIENT_SOURCE_FILES
-        client.cpp mini-thrift.h mini-thrift.cpp)
+        client.cpp mini-thrift.h atm-protocol.h)
 
 set(SERVER_SOURCE_FILES
-        server.cpp mini-thrift.h mini-thrift.cpp)
+        server.cpp mini-thrift.h atm-protocol.h)
 
 add_executable(client ${CLIENT_SOURCE_FILES})
 target_link_libraries(client ${LIBRARIES})

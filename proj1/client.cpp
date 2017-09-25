@@ -20,6 +20,7 @@
 #include <iostream>
 
 #include "mini-thrift.h"
+#include "atm-protocol.h"
 
 /* Constants */
 #define RCVBUFSIZE 512 /* The receive buffer size */
@@ -27,6 +28,20 @@
 #define REPLYLEN 32
 
 using namespace std;
+
+
+class ATMClient : public RPCClient {
+public:
+    using RPCClient::RPCClient;
+    string accountName;
+    void callback(RPCMessage reply) {
+        if (reply.verb == "BAL") {
+            BALReply balReply = reply.getPayloadStruct<BALReply>();
+            cout << accountName << endl;
+            cout << "Balance is: " << balReply.balance << endl;
+        }
+    }
+};
 
 /* The main function */
 int main(int argc, char *argv[]) {
@@ -43,12 +58,6 @@ int main(int argc, char *argv[]) {
     int balance; /* Account balance */
 
     /* Get the Account Name from the command line */
-    if (argc != 4) {
-        printf(
-                "Incorrect number of arguments. The correct format "
-                        "is:\n\taccountName serverIP serverPort");
-        exit(1);
-    }
     accountName = argv[1];
     memset(&sndBuf, 0, SNDBUFSIZE);
     memset(&rcvBuf, 0, RCVBUFSIZE);
@@ -58,28 +67,15 @@ int main(int argc, char *argv[]) {
     servIP = argv[2];
     servPort = (unsigned short) atoi(argv[3]);
 
-    /* Create a new TCP socket*/
-    clientSock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    ATMClient client{servIP, servPort};
 
-    /* Construct the server address structure */
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = inet_addr(servIP);
-    serv_addr.sin_port = htons(servPort);
+    BALPayload payload;
+    client.accountName = payload.accountName = accountName;
+    RPCMessage call;
+    call.verb = "BAL";
+    call.setPayloadStruct<BALPayload>(payload);
+    client.start();
+    client.call(call);
 
-    /* Establish connecction to the server */
-    connect(clientSock, (struct sockaddr*)&serv_addr, sizeof(struct sockaddr));
-
-    cout << "Connected to " << servIP << ':' << servPort << endl;
-
-    /* Send the string to the server */
-    memcpy(sndBuf, accountName, strlen(accountName));
-    write(clientSock, sndBuf, strlen(accountName));
-
-    /* Receive and print response from the server */
-    /*      FILL IN  */
-
-
-    printf("%s\n", accountName);
-    printf("Balance is: %i\n", balance);
     return 0;
 }
