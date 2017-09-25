@@ -25,13 +25,15 @@
 #define SNDBUFSIZE 512 /* The send buffer size */
 #define BUFSIZE 40     /* Your name can be as many as 40 chars*/
 
+#define nullptr NULL
 #define OUTERROR cout << "Error " << errno << ": " << strerror(errno) << endl
-
+using namespace std;
 namespace MiniThrift {
 
     class DeserializeException : std::exception {
 
     };
+
 
     const uint16_t FIELDS_STOP = 0xDEAD;
     const uint16_t MESSAGE_STOP = 0xBEEF;
@@ -56,25 +58,25 @@ namespace MiniThrift {
 
     class Deserializer {
     private:
-        void *buffer;
+        char *buffer;
         size_t bufferSize;
         size_t cur;
 
-        void *outBuffer;
+        char *outBuffer;
         size_t outBufferSize;
 
-        inline void *readNext(size_t bytes) {
+        inline string readNext(size_t bytes) {
             memset(outBuffer, 0, sizeof(outBuffer));
-            if (cur + bytes < bufferSize && bytes <= outBufferSize) {
-                memmove(outBuffer, (char *) buffer + cur, bytes);
+            if (cur + bytes <= bufferSize && bytes <= outBufferSize) {
+                memmove(outBuffer, buffer + cur, bytes);
                 cur += bytes;
-                return outBuffer;
+                return string(outBuffer, bytes);
             }
             return nullptr;
         }
 
         inline uint8_t readTypeMarker(Type t) {
-            if (*reinterpret_cast<uint8_t *>(readNext(sizeof(uint8_t))) == t) {
+            if (*(uint8_t *)(readNext(sizeof(uint8_t)).c_str()) == t) {
                 return sizeof(uint8_t);
             } else {
                 throw DeserializeException();
@@ -82,13 +84,13 @@ namespace MiniThrift {
         }
 
         inline uint32_t readLength() {
-            return *reinterpret_cast<uint32_t *>(readNext(sizeof(uint32_t)));
+            return *(uint32_t *)(readNext(sizeof(uint32_t)).c_str());
         }
 
 
     public:
-        Deserializer(void *buffer, size_t bufferSize, size_t outBufferSize = 2048) {
-            outBuffer = malloc(outBufferSize);
+        Deserializer(char *buffer, size_t bufferSize, size_t outBufferSize = 2048) {
+            outBuffer = (char *)malloc(outBufferSize);
             this->outBufferSize = outBufferSize;
             this->buffer = buffer;
             this->bufferSize = bufferSize;
@@ -98,7 +100,7 @@ namespace MiniThrift {
 #define HANDLE_TYPE(TYPE, TYPE_NAME)                          \
         TYPE_NAME read##TYPE() {                              \
             readTypeMarker(T_##TYPE);                         \
-            return *(TYPE_NAME *)readNext(sizeof(TYPE_NAME)); \
+            return *(TYPE_NAME *)readNext(sizeof(TYPE_NAME) / sizeof(char)).c_str(); \
         }
 
         HANDLE_TYPE(I64, int64_t)
@@ -124,7 +126,7 @@ namespace MiniThrift {
         std::string readString() {
             readTypeMarker(T_STRING);
             uint32_t length = readLength();
-            return std::string{(char *) (readNext(length)), length};
+            return readNext(length);
         }
 
         void readFieldsStop() {
@@ -141,7 +143,7 @@ namespace MiniThrift {
 
     class Serializer {
     private:
-        void *buffer;
+        char *buffer;
         size_t bufferSize;
         size_t cur;
 
@@ -149,22 +151,22 @@ namespace MiniThrift {
             if (len + cur >= bufferSize) {
                 realloc(buffer, bufferSize * SERIALIZER_BUFFER_GROWTH);
             }
-            memmove((char *) buffer + cur, blob, len);
+            memmove(buffer + cur, blob, len);
             cur += len;
             return len;
         }
 
         inline size_t addTypeMarker(Type t) {
-            return addBlob(&t, sizeof(uint8_t));
+            return addBlob(&t, sizeof(uint8_t) / sizeof(char));
         }
 
         inline size_t addLength(uint32_t l) {
-            return addBlob(&l, sizeof(uint32_t));
+            return addBlob(&l, sizeof(uint32_t) / sizeof(char));
         }
 
     public:
         explicit Serializer(size_t bufferSize = SERIALIZER_BUFFER_SIZE) {
-            buffer = malloc(bufferSize);
+            buffer = (char *) malloc(bufferSize);
             this->bufferSize = bufferSize;
             cur = 0;
         }
@@ -173,7 +175,7 @@ namespace MiniThrift {
             free(buffer);
         }
 
-        void *getBuffer() {
+        char *getBuffer() {
             return buffer;
         }
 
@@ -181,11 +183,14 @@ namespace MiniThrift {
             return cur;
         }
 
+        string getBufferStr() {
+            return std::string(buffer, cur);
+        }
 
 #define HANDLE_TYPE(TYPE, TYPE_NAME)                    \
         size_t add##TYPE(TYPE_NAME &value) {            \
             return addTypeMarker(T_##TYPE)              \
-                + addBlob(&value, sizeof(TYPE_NAME));   \
+                + addBlob(&value, sizeof(TYPE_NAME) / sizeof(char));   \
         }
 
         HANDLE_TYPE(I64, int64_t)
@@ -226,23 +231,19 @@ namespace MiniThrift {
             return addBlob((void *) &MESSAGE_STOP, sizeof(MESSAGE_STOP));
         }
 
-        std::string getBufferString() {
-            std::string str{(char *) buffer, cur};
-            return str;
-        }
     };
 
     class BaseStruct {
     public:
-        Serializer *s = nullptr;
-        Deserializer *d = nullptr;
+        Serializer *s;
+        Deserializer *d;
 
         virtual void deserializeBody() {
 
         }
 
         void deserialize(const std::string &str) {
-            d = new Deserializer((void *) (str.c_str()), str.length());
+            d = new Deserializer((char *)str.c_str(), str.length());
             deserializeBody();
             d->readFieldsStop();
             delete d;
@@ -256,7 +257,7 @@ namespace MiniThrift {
             s = new Serializer();
             serializeBody();
             s->addFieldsStop();
-            std::string ret = s->getBufferString();
+            std::string ret = s->getBufferStr();
             delete s;
             return ret;
         }
@@ -281,7 +282,7 @@ namespace MiniThrift {
         }
 
         void deserialize(std::string buffer) {
-            Deserializer d((void *) buffer.c_str(), buffer.length());
+            Deserializer d((char *) buffer.c_str(), buffer.length());
             this->verb = d.readString();
             this->payload = d.readString();
             d.readMessageStop();
@@ -293,7 +294,7 @@ namespace MiniThrift {
             s.addString(payload);
             s.addMessageStop();
 
-            return s.getBufferString();
+            return s.getBufferStr();
         }
     };
 
@@ -308,6 +309,11 @@ namespace MiniThrift {
         char sendBuf[SNDBUFSIZE];
 
         int serverSock;
+
+        RPCServer() {
+            this->serverIP = "127.0.0.1";
+            this->serverPort = 2017;
+        }
 
         explicit RPCServer(string serverIP, unsigned short serverPort = 5432) {
             this->serverIP = serverIP;
@@ -337,7 +343,7 @@ namespace MiniThrift {
                     ssize_t bytesRead = read(clientSock, recvBuf + cur, BUFSIZE);
                     cur += bytesRead;
                 } while (*(int32_t *)(recvBuf + cur - 2) != MESSAGE_STOP);
-                string rpcBuffer{recvBuf, cur};
+                string rpcBuffer(recvBuf, cur);
                 RPCMessage msg;
                 msg.deserialize(rpcBuffer);
                 RPCMessage reply = dispatch(msg);
@@ -361,6 +367,11 @@ namespace MiniThrift {
         char sendBuf[SNDBUFSIZE];
 
         int clientSock;
+
+        RPCClient() {
+            this->serverIP = "127.0.0.1";
+            this->serverPort = 2017;
+        }
 
         RPCClient(string serverIP, unsigned short serverPort) {
             this->serverIP = serverIP;
@@ -392,7 +403,7 @@ namespace MiniThrift {
                 ssize_t bytesRead = read(clientSock, recvBuf + cur, BUFSIZE);
                 cur += bytesRead;
             } while (*(int32_t *)(recvBuf + cur - 2) != MESSAGE_STOP);
-            string rpcBuffer{recvBuf, cur};
+            string rpcBuffer(recvBuf, cur);
             RPCMessage replyMsg;
             replyMsg.deserialize(rpcBuffer);
             callback(replyMsg);

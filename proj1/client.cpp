@@ -32,7 +32,10 @@ using namespace std;
 
 class ATMClient : public RPCClient {
 public:
-    using RPCClient::RPCClient;
+    ATMClient(string serverIP, unsigned short serverPort) {
+        this->serverIP = serverIP;
+        this->serverPort = serverPort;
+    }
     string accountName;
     void callback(RPCMessage reply) {
         if (reply.verb == "BAL") {

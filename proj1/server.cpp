@@ -34,7 +34,10 @@ map<string, int> balanceSheet;
 
 class ATMServer : public RPCServer {
 public:
-    using RPCServer::RPCServer;
+    ATMServer(string serverIP, unsigned short serverPort) {
+        this->serverIP = serverIP;
+        this->serverPort = serverPort;
+    }
 
     RPCMessage onBAL(RPCMessage &request) {
         RPCMessage reply;
@@ -50,6 +53,7 @@ public:
 
 
     RPCMessage dispatch(RPCMessage &request) {
+        cout << "request!" << endl;
         if (request.verb == "BAL") {
             cout << "BAL request";
             return onBAL(request);
@@ -74,17 +78,8 @@ map<string, int> loadBalanceFromStream(istream &input) {
 
 /* The main function */
 int main(int argc, char **argv) {
-    int serverSock;                    /* Server Socket */
-    int clientSock;                    /* Client Socket */
-    struct sockaddr_in serverAddr; /* Local address */
-    struct sockaddr_in clientAddr; /* Client address */
     unsigned short serverPort = 2017;     /* Server port */
     unsigned int clientLen = sizeof(sockaddr_in);        /* Length of address data struct */
-    char nameBuf[BUFSIZE]; /* Buff to store account name from client */
-    char rcvBuf[RCVBUFSIZE];
-    char sndBuf[SNDBUFSIZE];
-    int balance;           /* Place to record account balance result */
-
     string serverIp = "0.0.0.0";  // By default, bind to all addresses
 
     if (argc >= 2) {
