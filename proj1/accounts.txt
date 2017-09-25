@@ -1,4 +1,0 @@
-mySavings 1000
-myChecking 2000
-myRetirement 3000
-myCollege 4000

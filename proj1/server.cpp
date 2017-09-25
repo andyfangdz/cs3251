@@ -19,6 +19,7 @@
 #include <cerrno>
 #include <iostream>
 #include <fstream>
+#include <ctime>
 
 #include <map>
 #include <string>
@@ -31,6 +32,9 @@ using namespace std;
 #define BUFSIZE 40     /* Your name can be as many as 40 chars*/
 
 map<string, int> balanceSheet;
+
+map<string, time_t> access1, access2, access3;
+map<string, time_t> previousAccess;
 
 class ATMServer : public RPCServer {
 public:
@@ -51,6 +55,35 @@ public:
         return reply;
     }
 
+    RPCMessage onWITHDRAW(RPCMessage &request) {
+        RPCMessage reply;
+        WITHDRAWPayload payload;
+        WITHDRAWReply withdrawReply;
+        reply.verb = request.verb;
+        payload = request.getPayloadStruct<WITHDRAWPayload>();
+
+        time_t thisAccess = time(NULL),
+                last1 = access1[payload.accountName],
+                last2 = access2[payload.accountName],
+                last3 = access3[payload.accountName];
+
+        if (thisAccess - last3 <= 60) {
+            withdrawReply.newAmount = -2;
+        } else {
+            if (balanceSheet[payload.accountName] >= payload.amount) {
+                balanceSheet[payload.accountName] -= payload.amount;
+                withdrawReply.newAmount = balanceSheet[payload.accountName];
+            } else {
+                withdrawReply.newAmount = -1;
+            }
+        }
+        access3[payload.accountName] = access2[payload.accountName];
+        access2[payload.accountName] = access1[payload.accountName];
+        access1[payload.accountName] = thisAccess;
+        reply.setPayloadStruct(withdrawReply);
+        return reply;
+    }
+
 
     RPCMessage dispatch(RPCMessage &request) {
         cout << "request!" << endl;
@@ -58,7 +91,7 @@ public:
             cout << "BAL request";
             return onBAL(request);
         } else if (request.verb == "WITHDRAW") {
-            return onBAL(request);
+            return onWITHDRAW(request);
         }
     }
 };

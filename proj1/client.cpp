@@ -36,12 +36,23 @@ public:
         this->serverIP = serverIP;
         this->serverPort = serverPort;
     }
-    string accountName;
     void callback(RPCMessage reply) {
         if (reply.verb == "BAL") {
             BALReply balReply = reply.getPayloadStruct<BALReply>();
-            cout << accountName << endl;
+            cout << balReply.accountName << endl;
             cout << "Balance is: " << balReply.balance << endl;
+        } else if (reply.verb == "WITHDRAW") {
+            WITHDRAWReply withdrawReply = reply.getPayloadStruct<WITHDRAWReply>();
+            if (withdrawReply.newAmount >= 0) {
+                cout << "Withdraw success! New amount: " << withdrawReply.newAmount << endl;
+            } else {
+                if (withdrawReply.newAmount == -1) {
+                    cout << "Error: Insufficient Funds!" << endl;
+                }
+                if (withdrawReply.newAmount == -2) {
+                    cout << "Error: Account Timedout!" << endl;
+                }
+            }
         }
     }
 };
@@ -61,24 +72,43 @@ int main(int argc, char *argv[]) {
     int balance; /* Account balance */
 
     /* Get the Account Name from the command line */
-    accountName = argv[1];
+
     memset(&sndBuf, 0, SNDBUFSIZE);
     memset(&rcvBuf, 0, RCVBUFSIZE);
 
     /* Get the addditional parameters from the command line */
     /*      FILL IN */
-    servIP = argv[2];
-    servPort = (unsigned short) atoi(argv[3]);
+    servIP = argv[1];
+    servPort = (unsigned short) atoi(argv[2]);
+
+    string command = argv[3];
 
     ATMClient client{servIP, servPort};
-
-    BALPayload payload;
-    client.accountName = payload.accountName = accountName;
-    RPCMessage call;
-    call.verb = "BAL";
-    call.setPayloadStruct<BALPayload>(payload);
     client.start();
+
+    accountName = argv[4];
+    RPCMessage call;
+
+    if (command == "BAL") {
+        BALPayload payload;
+        payload.accountName = accountName;
+
+        call.verb = "BAL";
+        call.setPayloadStruct<BALPayload>(payload);
+
+    }
+
+    if (command == "WITHDRAW") {
+        uint32_t amount = atoi(argv[5]);
+        WITHDRAWPayload payload;
+        payload.accountName = accountName;
+        payload.amount = amount;
+        call.verb = "WITHDRAW";
+        call.setPayloadStruct<WITHDRAWPayload>(payload);
+    }
     client.call(call);
+
+
 
     return 0;
 }

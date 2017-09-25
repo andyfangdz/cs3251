@@ -285,7 +285,6 @@ namespace MiniThrift {
             Deserializer d((char *) buffer.c_str(), buffer.length());
             this->verb = d.readString();
             this->payload = d.readString();
-            d.readMessageStop();
         }
 
         std::string serialize() {
@@ -315,7 +314,7 @@ namespace MiniThrift {
             this->serverPort = 2017;
         }
 
-        explicit RPCServer(string serverIP, unsigned short serverPort = 5432) {
+        explicit RPCServer(string serverIP, unsigned short serverPort = 2017) {
             this->serverIP = serverIP;
             this->serverPort = serverPort;
         }
@@ -323,6 +322,8 @@ namespace MiniThrift {
 
         void start() {
             serverSock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+            int enable = 1;
+            setsockopt(serverSock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
             struct sockaddr_in serverAddr;
             serverAddr.sin_family = AF_INET;
             serverAddr.sin_addr.s_addr = inet_addr(serverIP.c_str());
@@ -330,6 +331,7 @@ namespace MiniThrift {
             cout << serverAddr.sin_port << endl;
             bind(serverSock, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
             listen(serverSock, 50);
+            OUTERROR;
         }
 
         void serve() {
@@ -339,10 +341,8 @@ namespace MiniThrift {
             while ((clientSock = accept(serverSock, (struct sockaddr *) &clientAddr, &clientLen))
                    > 0) {
                 size_t cur = 0;
-                do {
                     ssize_t bytesRead = read(clientSock, recvBuf + cur, BUFSIZE);
                     cur += bytesRead;
-                } while (*(int32_t *)(recvBuf + cur - 2) != MESSAGE_STOP);
                 string rpcBuffer(recvBuf, cur);
                 RPCMessage msg;
                 msg.deserialize(rpcBuffer);
@@ -394,15 +394,12 @@ namespace MiniThrift {
         void call(RPCMessage msg) {
             string callStr = msg.serialize();
             size_t cur = 0;
-            do {
-                cur += write(clientSock, callStr.c_str() + cur, callStr.length() - cur);
-            } while (cur != callStr.length());
+            memset(sendBuf, 0, sizeof(sendBuf));
+            memmove(sendBuf, callStr.c_str(), callStr.length());
+            send(clientSock, sendBuf, callStr.length() - cur, 0);
 
-            cur = 0;
-            do {
-                ssize_t bytesRead = read(clientSock, recvBuf + cur, BUFSIZE);
-                cur += bytesRead;
-            } while (*(int32_t *)(recvBuf + cur - 2) != MESSAGE_STOP);
+            ssize_t bytesRead = read(clientSock, recvBuf + cur, BUFSIZE);
+            cur += bytesRead;
             string rpcBuffer(recvBuf, cur);
             RPCMessage replyMsg;
             replyMsg.deserialize(rpcBuffer);
