@@ -26,7 +26,7 @@
 #define BUFSIZE 40     /* Your name can be as many as 40 chars*/
 
 #define nullptr NULL
-#define OUTERROR cout << "Error " << errno << ": " << strerror(errno) << endl
+
 using namespace std;
 namespace MiniThrift {
 
@@ -328,10 +328,8 @@ namespace MiniThrift {
             serverAddr.sin_family = AF_INET;
             serverAddr.sin_addr.s_addr = inet_addr(serverIP.c_str());
             serverAddr.sin_port = htons(serverPort);
-            cout << serverAddr.sin_port << endl;
             bind(serverSock, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
             listen(serverSock, 50);
-            OUTERROR;
         }
 
         void serve() {

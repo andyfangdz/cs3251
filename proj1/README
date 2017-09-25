@@ -1,0 +1,5 @@
+To compile, run `make`
+
+To run server, run `./server [ip address, default=0.0.0.0] [port, default=2017]`
+
+To run client, run `./client ip-address port BAL|WITHDRAW accountName amount (if withdraw)`
